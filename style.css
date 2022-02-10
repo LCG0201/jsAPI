@@ -63,3 +63,7 @@ input[id="searchCheckBox"] + label {
 .textBox {
   text-overflow: ellipsis;
 }
+.pagination {
+  display: flex;
+  justify-content: center;
+}

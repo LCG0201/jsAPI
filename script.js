@@ -1,14 +1,27 @@
 let menuBarDom = document.querySelectorAll(".menu");
 let searchBoxDom = document.querySelector(".searchBox");
 let searchBtnDom = document.querySelector(".searchBtn");
+let pageButtonDom = document.querySelectorAll(".pageButton");
 let news = [];
+let totalPages = 0;
+let page = 1;
 let topic = "";
 let searchText = "";
+let url;
+
+let topicSize = 10;
+
+pageButtonDom.forEach((item) => {
+  item.addEventListener("click", (event) => {
+    console.log(item.innerHTML);
+  });
+});
 
 searchBtnDom.addEventListener("click", () => {
   searchText = `${searchBoxDom.value}`;
   if (searchText == "" || searchText == null) {
   } else if (searchText != "") {
+    page = 1;
     getSearchNews();
   }
 });
@@ -20,18 +33,43 @@ menuBarDom.forEach((oneButton) => {
   oneButton.addEventListener("click", (event) => getNewsByTopic(event));
 });
 
-const getLatestNews = async () => {
-  let url = new URL(
-    `https://api.newscatcherapi.com/v2/latest_headlines?countries=KR&topic=${topic}&page_size=20`
-  );
-  let header = new Headers({
-    "x-api-key": "Z3WqLB-GwJfJxYBqGNi-zVrAPWnDfoJ2UFL5qR9c20E",
-  });
-  let response = await fetch(url, { headers: header }); //ajax, axios, fetch 가있다~
-  let data = await response.json();
-  news = data.articles;
+const getNews = async () => {
+  try {
+    let header = new Headers({
+      "x-api-key": "Z3WqLB-GwJfJxYBqGNi-zVrAPWnDfoJ2UFL5qR9c20E",
+    });
 
-  render();
+    url.searchParams.set("page", page);
+
+    let response = await fetch(url, { headers: header }); //ajax, axios, fetch 가있다~
+    let data = await response.json();
+    if (response.status == 200) {
+      if (data.total_hits == 0) {
+        throw new Error("검색 결과를 찾을 수 없습니다!ㅠㅠ");
+      }
+      news = data.articles;
+      totalPages = data.total_pages;
+      page = data.page;
+
+      render();
+      pageNation();
+    } else {
+      throw new Error(data.message);
+    }
+
+    console.log(response.status, response.error_code);
+  } catch (error) {
+    console.log("에러는 : ", error.message);
+    errorRender(error.message);
+  }
+};
+
+const getLatestNews = () => {
+  url = new URL(
+    `https://api.newscatcherapi.com/v2/latest_headlines?countries=KR&topic=${topic}&page_size=${topicSize}`
+  );
+
+  getNews();
 };
 
 const getNewsByTopic = (event) => {
@@ -39,18 +77,11 @@ const getNewsByTopic = (event) => {
   getLatestNews();
 };
 
-async function getSearchNews() {
-  let url = new URL(
-    `https://api.newscatcherapi.com/v2/search?q=${searchText}&page_size=20`
+function getSearchNews() {
+  url = new URL(
+    `https://api.newscatcherapi.com/v2/search?q=${searchText}&page_size=${topicSize}`
   );
-  let header = new Headers({
-    "x-api-key": "Z3WqLB-GwJfJxYBqGNi-zVrAPWnDfoJ2UFL5qR9c20E",
-  });
-  let response = await fetch(url, { headers: header }); //ajax, axios, fetch 가있다~
-  let data = await response.json();
-  news = data.articles;
-
-  render();
+  getNews();
 }
 
 function render() {
@@ -90,5 +121,72 @@ function render() {
 
   document.getElementById("newsBoard").innerHTML = newsHTML;
 }
+
+const errorRender = (errorText) => {
+  errorHTML = `<div class="alert alert-danger text-center" role="alert">
+    ${errorText}
+  </div>`;
+  document.getElementById("newsBoard").innerHTML = errorHTML;
+};
+
+const pageNation = () => {
+  let pageNationHTML = "";
+  let pageGroup = Math.ceil(page / 5);
+  let last = pageGroup * 5;
+  let first = last - 4;
+
+  //totalpage 가 5 미만일 경우
+  if (totalPages < last) {
+    last = totalPages;
+  }
+
+  pageNationHTML =
+    page > 5
+      ? `<li class="page-item">
+  <a class="page-link" href="#" aria-label="Previous" onclick="moveToPage(1)">
+    <span aria-hidden="true">&laquo;</span>
+  </a>
+</li>
+
+<li class="page-item">
+  <a class="page-link" href="#" aria-label="Previous">
+    <span aria-hidden="true" onclick="moveToPage(${page - 1})">&lt;</span>
+  </a>
+</li>`
+      : "";
+
+  for (let i = first; i <= last; i++) {
+    pageNationHTML += ` <li class="page-item ${
+      i == page ? "active" : ""
+    }"><a class="page-link" href="#" onclick="moveToPage(${i})">${i}</a></li>`;
+  }
+
+  pageNationHTML +=
+    page <= (Math.ceil(totalPages / 5) - 1) * 5
+      ? `<li class="page-item">
+  <a class="page-link" href="#" aria-label="Next" onclick="moveToPage(${
+    page + 1
+  })">
+    <span aria-hidden="true">&gt;</span>
+  </a>
+</li>
+
+<li class="page-item">
+  <a class="page-link" href="#" aria-label="Next" onclick="moveToPage(${totalPages})">
+    <span aria-hidden="true">&raquo;</span>
+  </a>
+</li>`
+      : "";
+
+  document.querySelector(".pagination").innerHTML = pageNationHTML;
+};
+
+const moveToPage = (pageNum) => {
+  console.log("move");
+  page = pageNum;
+  console.log(page);
+
+  getNews();
+};
 
 getLatestNews();
